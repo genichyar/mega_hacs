@@ -239,7 +239,7 @@ async def get_hub(hass, entry):
 async def _add_mega(hass: HomeAssistant, entry: ConfigEntry):
     id = entry.data.get("id", entry.entry_id)
     hub = await get_hub(hass, entry)
-    hub.fw = await hub.get_fw()
+    hub.model, hub.fw = await hub.get_model_info()
     hass.data[DOMAIN][id] = hub
     hass.data[DOMAIN][CONF_ALL][id] = hub
     if not await hub.authenticate():

@@ -71,6 +71,7 @@ LUX = 'lux'
 SINGLE_CLICK = 'single'
 DOUBLE_CLICK = 'double'
 
+PATT_MODEL = re.compile(r'^(.+?)\s')
 PATT_FW = re.compile(r'fw:\s(.+?)\)')
 
 REMOVE_CONFIG = [

@@ -28,6 +28,7 @@ from .const import (
     CONF_CUSTOM,
     CONF_FORCE_D,
     CONF_DEF_RESPONSE,
+    PATT_MODEL,
     PATT_FW,
     CONF_FORCE_I2C_SCAN,
     REMOVE_CONFIG,
@@ -150,6 +151,7 @@ class MegaD:
             else None,
         )
         self.updaters = []
+        self.model = ""
         self.fw = ""
         self.notifiers = defaultdict(asyncio.Condition)
         if not mqtt_id:
@@ -292,9 +294,12 @@ class MegaD:
                 _id = _id["value"]
             return _id or "megad/" + self.host.split(".")[-1]
 
-    async def get_fw(self):
+    async def get_model_info(self):
         data = await self.request()
-        return PATT_FW.search(data).groups()[0]
+        return (
+            PATT_MODEL.search(data).groups()[0],
+            PATT_FW.search(data).groups()[0]
+        )
 
     async def send_command(self, port=None, cmd=None):
         return await self.request(pt=port, cmd=cmd)

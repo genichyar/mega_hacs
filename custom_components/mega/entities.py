@@ -27,6 +27,8 @@ from .const import (
     CONF_SMOOTH,
     CONF_RANGE,
 )
+from .tools import int_ignore
+
 
 _events_on = False
 _LOGGER = logging.getLogger(__name__)
@@ -103,9 +105,8 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
             self.mega.ds2413_ports |= {self.port}
         super().__init__(coordinator=mega.updater)
 
-    @property
-    def port_name(self) -> str:
-        port_id = str(self.port)
+    def __convert_port_name(self, port: str | int) -> str:
+        port_id = str(port)
         if "e" in port_id:
             port, ext = port_id.split("e")
             if self.mega.new_naming:
@@ -117,6 +118,10 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
                 return f"{int(port_id):02d}"
             else:
                 return f"{int(port_id)}"
+
+    @property
+    def port_name(self) -> str:
+        return self.__convert_port_name(self.port)
 
     @property
     def is_ws(self):
@@ -158,49 +163,45 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
     def customize(self):
         if self._customize is not None:
             return self._customize
-        if self.hass is None or self.entity_id is None:
+        if self.hass is None:
             return {}
         if self._customize is None:
-            c_entity_id = (
-                self.hass.data.get(DOMAIN, {})
-                .get(CONF_CUSTOM)
-                .get("entities", {})
-                .get(self.entity_id, {})
-            )
-            c = self.hass.data.get(DOMAIN, {}).get(CONF_CUSTOM) or {}
-            c = c.get(self._mega_id) or {}
-            c = c.get(self.port) or {}
+            c = self.hass.data.get(DOMAIN, {}).get(CONF_CUSTOM, {})
+            c = c.get(self._mega_id, {})
+            c = c.get(int_ignore(self.port), {})
             if self.addr is not None and self.index is not None and isinstance(c, dict):
                 idx = self.addr.lower() + f"_a" if self.index == 0 else "_b"
                 c = c.get(idx, {})
-            c.update(c_entity_id)
+            if self.entity_id is not None:
+                c_entity_id = (
+                    self.hass.data.get(DOMAIN, {})
+                    .get(CONF_CUSTOM)
+                    .get("entities", {})
+                    .get(self.entity_id, {})
+                )
+                c.update(c_entity_id)
             self._customize = c
-
         return self._customize
 
     @property
     def device_info(self) -> DeviceInfo:
         if isinstance(self.port, list):
             pt_idx = self.id_suffix
-        else:
-            _pt = (
-                self.port
-                if not self.mega.new_naming
-                else f"{self.port:02}"
-                if isinstance(self.port, int)
-                else self.port
+            port_names = ", ".join(
+                self.__convert_port_name(port) for port in self.port
             )
-            if isinstance(_pt, str) and "e" in _pt:
-                pt_idx, _ = _pt.split("e")
-            else:
-                pt_idx = _pt
+            model = f"{self.mega.model} (ports: {port_names})"
+        else:
+            pt_idx = self.port_name
+            model = f"{self.mega.model} (port: {self.port_name})"
         return DeviceInfo(
             identifiers={
                 # Serial numbers are unique identifiers within a specific domain
-                (DOMAIN, f"{self._mega_id}", pt_idx)
+                (DOMAIN, f"mega_{self._mega_id}_{pt_idx}")
             },
             name=self.name,
             manufacturer="ab-log.ru",
+            model=model,
             sw_version=self.mega.fw,
             via_device=(DOMAIN, self._mega_id),
         )
@@ -217,10 +218,7 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
     def name(self):
         c = self.customize.get(CONF_NAME)
         if not isinstance(c, str):
-            if not isinstance(self.port, list):
-                c = self._name or f"{self.mega.id}_{self.port_name}"
-            else:
-                c = self.id_suffix
+            return self._name
         return c
 
     @property
