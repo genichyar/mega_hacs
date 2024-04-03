@@ -127,11 +127,7 @@ class MegaView(HomeAssistantView):
                     _data = data.copy()
                     if e.startswith("ext"):
                         idx = e[3:]
-                        pt = (
-                            f"{pt_orig}e{idx}"
-                            if not hub.new_naming
-                            else f"{int(pt_orig):02d}e{int(idx):02d}"
-                        )
+                        pt = hub.get_ext_port_id(pt_orig, idx)
                         _data["pt_orig"] = pt_orig
                         _data["value"] = "ON" if v == "1" else "OFF"
                         _data["m"] = (

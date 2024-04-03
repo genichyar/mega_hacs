@@ -83,14 +83,7 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
             self._unique_id = unique_id or f"mega_{mega.id}_{port}" + (
                 f"_{id_suffix}" if id_suffix else ""
             )
-            _pt = (
-                port
-                if not mega.new_naming
-                else f"{port:02}"
-                if isinstance(port, int)
-                else port
-            )
-            self._name = name or f"{mega.id}_{_pt}" + (
+            self._name = name or f"{mega.id}_{self.port_name}" + (
                 f"_{id_suffix}" if id_suffix else ""
             )
             self._customize: dict = None
@@ -109,6 +102,21 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
         if self.http_cmd == "ds2413":
             self.mega.ds2413_ports |= {self.port}
         super().__init__(coordinator=mega.updater)
+
+    @property
+    def port_name(self) -> str:
+        port_id = str(self.port)
+        if "e" in port_id:
+            port, ext = port_id.split("e")
+            if self.mega.new_naming:
+                return f"{int(port):02d}e{int(ext):02d}"
+            else:
+                return f"{int(port)}e{int(ext)}"
+        else:
+            if self.mega.new_naming:
+                return f"{int(port_id):02d}"
+            else:
+                return f"{int(port_id)}"
 
     @property
     def is_ws(self):
@@ -210,14 +218,7 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
         c = self.customize.get(CONF_NAME)
         if not isinstance(c, str):
             if not isinstance(self.port, list):
-                _pt = (
-                    self.port
-                    if not self.mega.new_naming
-                    else f"{self.port:02}"
-                    if isinstance(self.port, int)
-                    else self.port
-                )
-                c = self._name or f"{self.mega.id}_p{_pt}"
+                c = self._name or f"{self.mega.id}_{self.port_name}"
             else:
                 c = self.id_suffix
         return c

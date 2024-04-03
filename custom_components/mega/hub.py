@@ -172,6 +172,9 @@ class MegaD:
             set()
         )  # список портов sht31 которые уже успешно проинициализированы были
 
+    def get_ext_port_id(self, port: int | str, ext: int | str) -> str:
+        return f"{port}e{ext}"
+
     async def start(self):
         pass
 
@@ -480,7 +483,7 @@ class MegaD:
             return
         ret = {}
         for i, x in enumerate(values.split(";")):
-            ret[f"{port}e{i}" if not self.new_naming else f"{port:02d}e{i:02d}"] = x
+            ret[self.get_ext_port_id(port, i)] = x
         return ret
 
     async def _update_i2c(self, params):
@@ -592,7 +595,7 @@ class MegaD:
                 for n in range(len(values)):
                     ext_page = await self.request(pt=port, ext=n)
                     ext_cfg = parse_config(ext_page)
-                    pt = f"{port}e{n}" if not self.new_naming else f"{port:02d}e{n:02d}"
+                    pt = self.get_ext_port_id(port, n)
                     if ext_cfg.ety == "1":
                         ret["light"][pt].append({})
                     elif ext_cfg.ety == "0":
@@ -604,13 +607,11 @@ class MegaD:
                 values = await self.request(pt=port, cmd="get")
                 values = values.split(";")
                 for n in range(len(values)):
-                    pt = f"{port}e{n}"
-                    name = pt if not self.new_naming else f"{port:02}e{n:02}"
+                    pt = self.get_ext_port_id(port, n)
                     ret["light"][pt].append(
                         {
                             "dimmer": True,
-                            "dimmer_scale": 16,
-                            "name": f"{self.id}_{name}",
+                            "dimmer_scale": 16
                         }
                     )
             if cfg.pty == "4":  # and (cfg.gr == '0' or _cust.get(CONF_FORCE_I2C_SCAN))
