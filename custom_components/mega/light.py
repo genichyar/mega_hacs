@@ -455,7 +455,7 @@ class MegaSimpleRGB(LightEntity, BaseMegaEntity):
             return False
         return self._is_on
 
-    def __normalize_rgb(self, rgb_color=None, brightness=None):
+    def __normalize_rgb(self, rgb_color=None, brightness=None, set_on=False):
         if rgb_color is None:
             rgb_color = self.rgb_color
         if brightness is None:
@@ -464,11 +464,13 @@ class MegaSimpleRGB(LightEntity, BaseMegaEntity):
         if coef > 0.:
             self._rgb_color = tuple(round(x / coef) for x in rgb_color)
             self._brightness = max(1, min(255, round(brightness * coef)))
-            self._is_on = True
+            if set_on:
+                self._is_on = True
         else:
             self._rgb_color = (255, 255, 255)
             self._brightness = 255
-            self._is_on = False
+            if set_on:
+                self._is_on = False
 
     def __rgb_to_device(self):
         if not self.is_on:
@@ -484,7 +486,7 @@ class MegaSimpleRGB(LightEntity, BaseMegaEntity):
             for i, x in enumerate(device_rgb_color)
         )
         brightness = 255.
-        self.__normalize_rgb(rgb_color, brightness)
+        self.__normalize_rgb(rgb_color, brightness, True)
 
     async def async_turn_on(self, **kwargs):
         if (time.time() - self._last_called) < .1:
