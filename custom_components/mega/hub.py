@@ -46,7 +46,7 @@ PATTERNS = {TEMP: TEMP_PATT, HUM: HUM_PATT, PRESS: PRESS_PATT, LUX: LUX_PATT}
 UNITS = {
     TEMP: UnitOfTemperature.CELSIUS,
     HUM: PERCENTAGE,
-    PRESS: UnitOfPressure.MMGH,
+    PRESS: UnitOfPressure.MMHG,
     LUX: LIGHT_LUX
 }
 CLASSES = {
