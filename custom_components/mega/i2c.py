@@ -11,7 +11,6 @@ from homeassistant.const import (
     UnitOfPressure,
     CONCENTRATION_PARTS_PER_MILLION
 )
-from collections import namedtuple
 
 
 # DeviceType = namedtuple('DeviceType', 'device_class,unit_of_measurement,suffix')

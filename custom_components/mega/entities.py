@@ -17,7 +17,6 @@ from .const import (
     DOMAIN,
     CONF_CUSTOM,
     CONF_INVERT,
-    EVENT_BINARY_SENSOR,
     LONG,
     LONG_RELEASE,
     RELEASE,

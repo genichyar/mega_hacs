@@ -12,13 +12,11 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_PORT,
     CONF_UNIQUE_ID,
-    CONF_ID,
-    CONF_ENTITY_ID,
+    CONF_ID
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.template import Template
-from .const import EVENT_BINARY_SENSOR, DOMAIN, CONF_CUSTOM, CONF_SKIP, CONF_INVERT, CONF_RESPONSE_TEMPLATE
-from .entities import  MegaPushEntity
+from .const import DOMAIN, CONF_CUSTOM, CONF_SKIP, CONF_INVERT
+from .entities import MegaPushEntity
 from .hub import MegaD
 from .tools import int_ignore
 

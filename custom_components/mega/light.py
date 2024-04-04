@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import typing
-from datetime import timedelta, datetime
+from datetime import timedelta
 from functools import partial
 
 import voluptuous as vol
@@ -13,13 +12,9 @@ import time
 
 from homeassistant.components.light import (
     PLATFORM_SCHEMA as LIGHT_SCHEMA,
-    SUPPORT_BRIGHTNESS,
     LightEntity,
-    SUPPORT_TRANSITION,
-    SUPPORT_COLOR,
     ColorMode,
-    LightEntityFeature,
-    # SUPPORT_WHITE_VALUE
+    LightEntityFeature
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (

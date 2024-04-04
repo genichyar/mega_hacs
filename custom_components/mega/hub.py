@@ -15,13 +15,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature, UnitOfPressure, PERCENTAGE, LIGHT_LUX
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from .config_parser import parse_config, DS2413, MCP230, MCP230_OUT, MCP230_IN, PCA9685
+from .config_parser import parse_config, DS2413, MCP230, PCA9685
 from .const import (
     TEMP,
     HUM,
     PRESS,
     LUX,
-    PATT_SPLIT,
     DOMAIN,
     CONF_HTTP,
     EVENT_BINARY_SENSOR,
@@ -30,10 +29,9 @@ from .const import (
     CONF_DEF_RESPONSE,
     PATT_MODEL,
     PATT_FW,
-    CONF_FORCE_I2C_SCAN,
     REMOVE_CONFIG,
 )
-from .entities import set_events_off, BaseMegaEntity, MegaOutPort, safe_int, safe_float
+from .entities import BaseMegaEntity, MegaOutPort, safe_int, safe_float
 from .exceptions import CannotConnect, NoPort
 from .i2c import parse_scan_page
 from .tools import make_ints, int_ignore, PriorityLock
