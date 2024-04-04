@@ -92,8 +92,8 @@ async def async_setup_entry(
         for entity_id, conf in customize[CONF_LED].items():
             ports = conf.get(CONF_PORTS) or [conf.get(CONF_PORT)]
             skip.extend(ports)
-            devices.append(
-                MegaRGBW(
+            if len(ports) == 3 and not conf.get(CONF_WS28XX, False):
+                dev = MegaSimpleRGB(
                     mega=hub,
                     port=ports,
                     name=entity_id,
@@ -101,7 +101,16 @@ async def async_setup_entry(
                     id_suffix=entity_id,
                     config_entry=config_entry,
                 )
-            )
+            else:
+                dev = MegaRGBW(
+                    mega=hub,
+                    port=ports,
+                    name=entity_id,
+                    customize=conf,
+                    id_suffix=entity_id,
+                    config_entry=config_entry,
+                )
+            devices.append(dev)
     for port, cfg in config_entry.data.get("light", {}).items():
         port = int_ignore(port)
         c = customize.get(port, {})
@@ -119,14 +128,6 @@ async def async_setup_entry(
             devices.append(light)
 
     async_add_devices(devices)
-
-
-class MegaLight(MegaOutPort, LightEntity):
-    @property
-    def supported_features(self):
-        return (SUPPORT_BRIGHTNESS if self.dimmer else 0) | (
-            SUPPORT_TRANSITION if self.dimmer else 0
-        )
 
 
 class MegaRGBW(LightEntity, BaseMegaEntity):
@@ -166,7 +167,6 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
     @property
     def supported_color_modes(self) -> set[ColorMode] | set[str] | None:
         return {
-            ColorMode.BRIGHTNESS,
             ColorMode.RGB if len(self.port) != 4 else ColorMode.RGBW,
         }
 
@@ -263,7 +263,6 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
             setattr(self, f"_{item}", value)
             if item == "rgb_color":
                 _after = map_reorder_rgb(value, RGB, self._color_order)
-                self._hs_color = colorsys.rgb_to_hsv(*value)
         _after = _after or self.get_rgbw()
         self._rgb_color = map_reorder_rgb(tuple(_after[:3]), self._color_order, RGB)
         if transition is None:
@@ -347,6 +346,204 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
         if sum(rgbw) == 0:
             self._is_on = False
         self.async_write_ha_state()
+
+    def calc_speed_ratio(self, _before, _after):
+        ret = None
+        for i, x in enumerate(_before):
+            r = abs(x - _after[i]) / self.max_values[i]
+            if ret is None:
+                ret = r
+            else:
+                ret = max([r, ret])
+        return ret
+
+
+class MegaLight(MegaOutPort, LightEntity):
+    @property
+    def color_mode(self) -> set[ColorMode] | set[str] | None:
+        if self.dimmer:
+            return ColorMode.BRIGHTNESS
+        else:
+            return ColorMode.ONOFF
+
+    @property
+    def supported_color_modes(self) -> set[ColorMode] | set[str] | None:
+        if self.dimmer:
+            return {ColorMode.BRIGHTNESS}
+        else:
+            return {ColorMode.ONOFF}
+
+
+class MegaSimpleRGB(LightEntity, BaseMegaEntity):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_on = None
+        self._rgb_color: tuple[int, int, int] | None = None
+        self._brightness = None
+        self._task: asyncio.Task = None
+        self._restore = None
+        self.smooth: timedelta = self.customize[CONF_SMOOTH]
+        self._last_called: float = 0
+
+    @property
+    def max_values(self) -> list:
+        return [
+            255 if isinstance(x, int) else 4095 for x in self.port
+        ]
+
+    @property
+    def supported_color_modes(self) -> set[ColorMode] | set[str] | None:
+        return {ColorMode.RGB}
+
+    @property
+    def color_mode(self) -> ColorMode | str | None:
+        return ColorMode.RGB
+
+    @property
+    def supported_features(self) -> LightEntityFeature:
+        if self.smooth.total_seconds() > 0:
+            return LightEntityFeature.TRANSITION
+        else:
+            return LightEntityFeature(0)
+
+    def __update(self):
+        rgb = []
+        for port in self.port:
+            val = self.mega.values.get(port, {})
+            if val is None or isinstance(val, dict) and len(val) == 0:
+                return
+            if not (isinstance(port, str) and "e" in port):
+                val = val.get("value")
+            val = safe_int(val)
+            if val is None:
+                return
+            rgb.append(val)
+        self.__device_to_rgb(rgb)
+
+    @property
+    def rgb_color(self) -> tuple[int, int, int] | None:
+        if self._rgb_color is None:
+            self.__update()
+        if self._rgb_color is None:
+            return (255, 255, 255)
+        return self._rgb_color
+
+    @property
+    def brightness(self):
+        if self._brightness is None:
+            self.__update()
+        if self._brightness is None:
+            return 255
+        return self._brightness
+
+    @property
+    def is_on(self):
+        if self._is_on is None:
+            self.__update()
+        if self._is_on is None:
+            return False
+        return self._is_on
+
+    def __normalize_rgb(self, rgb_color=None, brightness=None):
+        if rgb_color is None:
+            rgb_color = self.rgb_color
+        if brightness is None:
+            brightness = self.brightness
+        coef = max(rgb_color) / 255.
+        if coef > 0.:
+            self._rgb_color = tuple(round(x / coef) for x in rgb_color)
+            self._brightness = max(1, min(255, round(brightness * coef)))
+            self._is_on = True
+        else:
+            self._rgb_color = (255, 255, 255)
+            self._brightness = 255
+            self._is_on = False
+
+    def __rgb_to_device(self):
+        if not self.is_on:
+            return [0] * 3
+        return [
+            round(x * self.brightness / 255. * self.max_values[i] / 255.)
+            for i, x in enumerate(self.rgb_color)
+        ]
+
+    def __device_to_rgb(self, device_rgb_color):
+        rgb_color = tuple(
+            x / self.max_values[i] * 255.
+            for i, x in enumerate(device_rgb_color)
+        )
+        brightness = 255.
+        self.__normalize_rgb(rgb_color, brightness)
+
+    async def async_turn_on(self, **kwargs):
+        if (time.time() - self._last_called) < .1:
+            return
+        self._last_called = time.time()
+        self.lg.debug("turn on %s with kwargs %s", self.entity_id, kwargs)
+        if self._restore is not None:
+            self._restore.update(kwargs)
+            kwargs = self._restore
+            self._restore = None
+        _before = self.__rgb_to_device()
+        self._is_on = True
+        if self._task is not None:
+            self._task.cancel()
+        self._task = asyncio.create_task(self.set_color(_before, **kwargs))
+
+    async def async_turn_off(self, **kwargs):
+        if (time.time() - self._last_called) < 0.1:
+            return
+        self._last_called = time.time()
+        self._restore = {
+            "rgb_color": self.rgb_color,
+            "brightness": self.brightness
+        }
+        _before = self.__rgb_to_device()
+        self._is_on = False
+        if self._task is not None:
+            self._task.cancel()
+        self._task = asyncio.create_task(self.set_color(_before, **kwargs))
+
+    async def set_color(self, _before, **kwargs):
+        self.lg.debug("set_color: %s", kwargs)
+        transition = kwargs.get("transition")
+        update_state = transition is not None and transition > 3
+        for item, value in kwargs.items():
+            if item in ("rgb_color", "brightness"):
+                setattr(self, f"_{item}", value)
+        self.__normalize_rgb()
+        _after = self.__rgb_to_device()
+        if transition is None:
+            transition = self.smooth.total_seconds()
+            ratio = self.calc_speed_ratio(_before, _after)
+            transition = transition * ratio
+        self.async_write_ha_state()
+        config = [
+            (port, _before[i], _after[i]) for i, port in enumerate(self.port)
+        ]
+        try:
+            await self.mega.smooth_dim(
+                *config,
+                time=transition,
+                jitter=50,
+                updater=partial(self._update_from_rgb, update_state=update_state),
+                can_smooth_hardware=self.can_smooth_hardware,
+                max_values=self.max_values
+            )
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            self.lg.exception("while dimming")
+
+    async def async_will_remove_from_hass(self) -> None:
+        await super().async_will_remove_from_hass()
+        if self._task is not None:
+            self._task.cancel()
+
+    def _update_from_rgb(self, rgb, update_state=False):
+        self.__device_to_rgb(rgb)
+        if update_state:
+            self.async_write_ha_state()
 
     def calc_speed_ratio(self, _before, _after):
         ret = None
