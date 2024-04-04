@@ -83,22 +83,6 @@ async def async_setup_platform(
     return True
 
 
-def _make_entity(config_entry, mid: str, port: int, conf: dict):
-    key = conf[CONF_KEY]
-    return Mega1WSensor(
-        key=key,
-        mega_id=mid,
-        port=port,
-        patt=PATTERNS.get(key),
-        unit_of_measurement=UNITS.get(
-            key, UNITS[TEMP]
-        ),  # TODO: make other units, make options in config flow
-        device_class=CLASSES.get(key, CLASSES[TEMP]),
-        id_suffix=key,
-        config_entry=config_entry,
-    )
-
-
 async def async_setup_entry(
     hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
 ):
@@ -266,10 +250,6 @@ class MegaI2C(FilterBadValues):
         except Exception:
             lg.exception("while getting value")
             return None
-
-    @property
-    def device_class(self):
-        return self._device_class
 
 
 class Mega1WSensor(FilterBadValues):

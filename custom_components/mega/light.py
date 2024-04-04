@@ -388,11 +388,11 @@ class MegaLight(MegaOutPort, LightEntity):
 class MegaSimpleRGB(LightEntity, BaseMegaEntity):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._is_on = None
+        self._is_on: bool | None = None
         self._rgb_color: tuple[int, int, int] | None = None
-        self._brightness = None
+        self._brightness: int | None = None
         self._task: asyncio.Task = None
-        self._restore = None
+        self._restore: dict | None = None
         self.smooth: timedelta = self.customize[CONF_SMOOTH]
         self._last_called: float = 0
 
@@ -440,7 +440,7 @@ class MegaSimpleRGB(LightEntity, BaseMegaEntity):
         return self._rgb_color
 
     @property
-    def brightness(self):
+    def brightness(self) -> int | None:
         if self._brightness is None:
             self.__update()
         if self._brightness is None:
@@ -448,7 +448,7 @@ class MegaSimpleRGB(LightEntity, BaseMegaEntity):
         return self._brightness
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         if self._is_on is None:
             self.__update()
         if self._is_on is None:

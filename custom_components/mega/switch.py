@@ -20,7 +20,7 @@ from .entities import MegaOutPort
 from .const import CONF_DIMMER, CONF_SWITCH, DOMAIN, CONF_CUSTOM, CONF_SKIP
 from .tools import int_ignore
 
-_LOGGER = lg = logging.getLogger(__name__)
+lg = logging.getLogger(__name__)
 
 
 # Validation of the user's configuration

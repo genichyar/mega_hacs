@@ -34,13 +34,6 @@ _events_on = False
 _LOGGER = logging.getLogger(__name__)
 
 
-async def _set_events_on():
-    global _events_on, _task_set_ev_on
-    await asyncio.sleep(10)
-    _LOGGER.debug("events on")
-    _events_on = True
-
-
 def set_events_off():
     global _events_on, _task_set_ev_on
     _events_on = False
@@ -320,11 +313,11 @@ class MegaOutPort(MegaPushEntity):
         return self.customize.get(CONF_RANGE, [1, self.max_dim])
 
     @property
-    def invert(self):
+    def invert(self) -> bool:
         return self.customize.get(CONF_INVERT, False)
 
     @property
-    def device_value(self):
+    def device_value(self) -> int | None:
         val = self.mega.values.get(self.port, {})
         if val is None or isinstance(val, dict) and len(val) == 0:
             return
@@ -333,7 +326,7 @@ class MegaOutPort(MegaPushEntity):
         return safe_int(val, def_on=self.max_dim, def_off=0)
 
     @property
-    def brightness(self):
+    def brightness(self) -> int | None:
         if not self.dimmer:
             return
         val = self.device_value
@@ -342,7 +335,7 @@ class MegaOutPort(MegaPushEntity):
         return value_to_brightness(self.range, val)
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         val = self.mega.values.get(self.port, {})
         if isinstance(val, dict) and len(val) == 0 and self._state is not None:
             return self._state == "ON"
@@ -363,7 +356,7 @@ class MegaOutPort(MegaPushEntity):
                 and self.addr is not None
             ):
                 if not isinstance(val, dict):
-                    self.mega.lg.warning(
+                    self.lg.warning(
                         "%s: %s is not a dict", self.entity_id, val
                     )
                     return
@@ -372,14 +365,14 @@ class MegaOutPort(MegaPushEntity):
                     val.get(self.addr.lower(), val.get(self.addr.upper()))
                 )
                 if not isinstance(_val, str):
-                    self.mega.lg.warning(
+                    self.lg.warning(
                         "%s: can not get %s from %s, recieved %s",
                         self.entity_id, self.addr, val, _val
                     )
                     return
                 _val = _val.split("/")
                 if len(_val) >= 2:
-                    self.mega.lg.debug(
+                    self.lg.debug(
                         '%s parsed values: %s[%s]="%s"',
                         self.entity_id,
                         _val,
@@ -388,15 +381,15 @@ class MegaOutPort(MegaPushEntity):
                     )
                     val = _val[self.index]
                 else:
-                    self.mega.lg.warning(
+                    self.lg.warning(
                         "%s: %s has wrong length",
                         self.entity_id, _val
                     )
                     return
             elif self.index is not None and self.addr is None:
-                self.mega.lg.warning("%s does not has addr", self.entity_id)
+                self.lg.warning("%s does not has addr", self.entity_id)
                 return
-            self.mega.lg.debug("%s.state = %s", self.entity_id, val)
+            self.lg.debug("%s.state = %s", self.entity_id, val)
             if not self.invert:
                 return (
                     val == "ON"
