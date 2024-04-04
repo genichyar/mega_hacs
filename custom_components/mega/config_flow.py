@@ -6,7 +6,9 @@ import voluptuous as vol
 
 from homeassistant import config_entries, core
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_ID, CONF_PASSWORD, CONF_SCAN_INTERVAL
+from homeassistant.const import (
+    CONF_HOST, CONF_ID, CONF_PASSWORD, CONF_SCAN_INTERVAL
+)
 from homeassistant.core import callback, HomeAssistant
 from .const import (
     DOMAIN,
@@ -33,8 +35,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_PASSWORD, default="sec"): str,
         vol.Optional(CONF_SCAN_INTERVAL, default=30): int,
         vol.Optional(CONF_POLL_OUTS, default=False): bool,
-        # vol.Optional(CONF_PORT_TO_SCAN, default=0): int,
-        # vol.Optional(CONF_MQTT_INPUTS, default=False): bool,
         vol.Optional(CONF_NPORTS, default=37): int,
         vol.Optional(CONF_UPDATE_ALL, default=True): bool,
         vol.Optional(CONF_FAKE_RESPONSE, default=True): bool,
@@ -48,10 +48,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 
 async def get_hub(hass: HomeAssistant, data):
-    # _mqtt = hass.data.get(mqtt.DOMAIN)
-    # if not isinstance(_mqtt, mqtt.MQTT):
-    #     raise exceptions.MqttNotConfigured("mqtt must be configured first")
-    hub = MegaD(hass, **data, lg=_LOGGER, loop=asyncio.get_event_loop())  # mqtt=_mqtt,
+    hub = MegaD(hass, **data, lg=_LOGGER, loop=asyncio.get_event_loop())
     hub.mqtt_id = await hub.get_mqtt_id()
     if not await hub.authenticate():
         raise exceptions.InvalidAuth
@@ -61,7 +58,8 @@ async def get_hub(hass: HomeAssistant, data):
 async def validate_input(hass: core.HomeAssistant, data):
     """Validate the user input allows us to connect.
 
-    Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
+    Data has the keys from STEP_USER_DATA_SCHEMA with values
+    provided by the user.
     """
     if data[CONF_ID] in hass.data.get(DOMAIN, []):
         raise exceptions.DuplicateId("duplicate_id")
@@ -89,9 +87,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             hub = await validate_input(self.hass, user_input)
             await hub.start()
             hub.new_naming = True
-            config = await hub.get_config(nports=user_input.get(CONF_NPORTS, 37))
+            config = await hub.get_config(
+                nports=user_input.get(CONF_NPORTS, 37)
+            )
             await hub.stop()
-            hub.lg.debug(f"config loaded: %s", config)
+            hub.lg.debug("config loaded: %s", config)
             config.update(user_input)
             config["new_naming"] = True
             return self.async_create_entry(
@@ -134,7 +134,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             await get_hub(self.hass, cfg)
 
             if reload:
-                id = self.config_entry.data.get("id", self.config_entry.entry_id)
+                id = self.config_entry.data.get(
+                    "id", self.config_entry.entry_id
+                )
                 hub: MegaD = self.hass.data[DOMAIN].get(id)
                 cfg = await hub.reload(reload_entry=False)
 
@@ -148,20 +150,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Optional(
-                        CONF_SCAN_INTERVAL, default=e.get(CONF_SCAN_INTERVAL, 0)
+                        CONF_SCAN_INTERVAL,
+                        default=e.get(CONF_SCAN_INTERVAL, 0)
                     ): int,
                     vol.Optional(
-                        CONF_POLL_OUTS, default=e.get(CONF_POLL_OUTS, False)
+                        CONF_POLL_OUTS,
+                        default=e.get(CONF_POLL_OUTS, False)
                     ): bool,
-                    # vol.Optional(CONF_PORT_TO_SCAN, default=e.get(CONF_PORT_TO_SCAN, 0)): int,
-                    # vol.Optional(CONF_MQTT_INPUTS, default=e.get(CONF_MQTT_INPUTS, True)): bool,
-                    vol.Optional(CONF_NPORTS, default=e.get(CONF_NPORTS, 37)): int,
+                    vol.Optional(
+                        CONF_NPORTS,
+                        default=e.get(CONF_NPORTS, 37)
+                    ): int,
                     vol.Optional(CONF_RELOAD, default=False): bool,
                     vol.Optional(
                         CONF_UPDATE_ALL, default=e.get(CONF_UPDATE_ALL, True)
                     ): bool,
                     vol.Optional(
-                        CONF_FAKE_RESPONSE, default=e.get(CONF_FAKE_RESPONSE, True)
+                        CONF_FAKE_RESPONSE,
+                        default=e.get(CONF_FAKE_RESPONSE, True)
                     ): bool,
                     vol.Optional(
                         CONF_FORCE_D, default=e.get(CONF_FORCE_D, False)
@@ -173,11 +179,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_PROTECTED, default=e.get(CONF_PROTECTED, True)
                     ): bool,
-                    vol.Optional(CONF_ALLOW_HOSTS, default="::1;127.0.0.1"): str,
                     vol.Optional(
-                        CONF_UPDATE_TIME, default=e.get(CONF_UPDATE_TIME, False)
-                    ): bool,
-                    # vol.Optional(CONF_INVERT, default=''): str,
+                        CONF_ALLOW_HOSTS,
+                        default="::1;127.0.0.1"
+                    ): str,
+                    vol.Optional(
+                        CONF_UPDATE_TIME,
+                        default=e.get(CONF_UPDATE_TIME, False)
+                    ): bool
                 }
             ),
         )

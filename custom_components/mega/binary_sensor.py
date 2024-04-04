@@ -38,12 +38,19 @@ PLATFORM_SCHEMA = SENSOR_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, add_entities, discovery_info=None):
-    lg.warning('mega integration does not support yaml for binary_sensors, please use UI configuration')
+async def async_setup_platform(
+    hass, config, add_entities, discovery_info=None
+):
+    lg.warning(
+        "mega integration does not support yaml for binary_sensors, "
+        "please use UI configuration"
+    )
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices):
+async def async_setup_entry(
+    hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
+):
     mid = config_entry.data[CONF_ID]
     hub: MegaD = hass.data['mega'][mid]
     devices = []
@@ -53,8 +60,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
         c = customize.get(mid, {}).get(port, {})
         if c.get(CONF_SKIP, False):
             continue
-        hub.lg.debug(f'add binary_sensor on port %s', port)
-        sensor = MegaBinarySensor(mega=hub, port=port, config_entry=config_entry)
+        hub.lg.debug('add binary_sensor on port %s', port)
+        sensor = MegaBinarySensor(
+            mega=hub, port=port, config_entry=config_entry
+        )
         if '<' in sensor.name:
             continue
         devices.append(sensor)
@@ -90,10 +99,12 @@ class MegaBinarySensor(BinarySensorEntity, MegaPushEntity):
             return self._state == 'ON'
         elif val is not None:
             if val in ['ON', 'OFF', '1', '0']:
-                return val in ['ON', '1'] if not self.invert else val in ['OFF', '0']
+                return (
+                    val in ['ON', '1']
+                    if not self.invert else val in ['OFF', '0']
+                )
             elif isinstance(val, int):
                 return val != 1 if not self.invert else val == 1
 
     def _update(self, payload: dict):
         self.mega.values[self.port] = payload
-

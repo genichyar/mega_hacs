@@ -13,9 +13,6 @@ from homeassistant.const import (
 )
 
 
-# DeviceType = namedtuple('DeviceType', 'device_class,unit_of_measurement,suffix')
-
-
 @dataclass
 class DeviceType:
     device_class: typing.Optional[str] = None
@@ -23,9 +20,10 @@ class DeviceType:
     suffix: typing.Optional[str] = None
     delay: typing.Optional[float] = None
     i2c_par: typing.Optional[int] = None
+    # на случай если все значения представлены одной строчкой (как с scd4x)
     idx: typing.Optional[
         int
-    ] = None  # на случай если все значения представлены одной строчкой (как с scd4x)
+    ] = None
 
 
 def parse_scan_page(page: str):
@@ -62,7 +60,9 @@ def parse_scan_page(page: str):
                 continue
             suffix = suffix or c
             if "addr" in _params:
-                suffix += f"_{_params['addr']}" if suffix else str(_params["addr"])
+                suffix += (
+                    f"_{_params['addr']}" if suffix else str(_params["addr"])
+                )
             if suffix:
                 _dev = f"{dev}_{suffix}"
             else:
@@ -72,7 +72,8 @@ def parse_scan_page(page: str):
             # i2c_par может быть явно указан в DeviceType
             elif i2c_par is not None and i2c_par > 0:
                 _params["i2c_par"] = i2c_par
-            # idx - тема фактически только для scd4x, означает номер внутри текстового значения разделенного знаком "/"
+            # idx - тема фактически только для scd4x,
+            # означает номер внутри текстового значения разделенного знаком "/"
             if idx is not None:
                 _params["idx"] = idx
 
@@ -100,48 +101,72 @@ class Request:
 i2c_classes = {
     "htu21d": [
         DeviceType(SensorDeviceClass.HUMIDITY, PERCENTAGE, None),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        ),
     ],
     "sht31": [
         DeviceType(SensorDeviceClass.HUMIDITY, PERCENTAGE, None, delay=0.1),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        ),
     ],
     "max44009": [DeviceType(SensorDeviceClass.ILLUMINANCE, LIGHT_LUX, None)],
     "bh1750": [DeviceType(SensorDeviceClass.ILLUMINANCE, LIGHT_LUX, None)],
     "tsl2591": [DeviceType(SensorDeviceClass.ILLUMINANCE, LIGHT_LUX, None)],
     "bmp180": [
         DeviceType(SensorDeviceClass.PRESSURE, UnitOfPressure.BAR, None),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        ),
     ],
     "bmx280": [
         DeviceType(SensorDeviceClass.PRESSURE, UnitOfPressure.BAR, None),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        ),
         DeviceType(SensorDeviceClass.HUMIDITY, PERCENTAGE, None),
     ],
     "dps368": [
         DeviceType(SensorDeviceClass.PRESSURE, UnitOfPressure.BAR, None),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        ),
     ],
     "mlx90614": [
         Skip,
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, "temp"),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, "object"),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, "temp"
+        ),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, "object"
+        ),
     ],
     "ptsensor": [
         Skip,
         Request(delay=3),  # запрос на измерение
         DeviceType(SensorDeviceClass.PRESSURE, UnitOfPressure.BAR, None),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        ),
     ],
     "mcp9600": [
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),  # термопара
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        ),  # термопара
         DeviceType(
             SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
         ),  # сенсор встроенный в микросхему
     ],
-    "t67xx": [DeviceType(SensorDeviceClass.CO2, CONCENTRATION_PARTS_PER_MILLION, None)],
+    "t67xx": [
+        DeviceType(
+            SensorDeviceClass.CO2, CONCENTRATION_PARTS_PER_MILLION, None
+        )
+    ],
     "tmp117": [
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None),
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None
+        )
     ],
     "ads1115": [
         DeviceType(None, None, "ch0"),
@@ -171,7 +196,12 @@ i2c_classes = {
             i2c_par=0,
             idx=0,
         ),
-        DeviceType(SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None, i2c_par=0, idx=1),
-        DeviceType(SensorDeviceClass.HUMIDITY, PERCENTAGE, None, i2c_par=0, idx=2),
-    ],
+        DeviceType(
+            SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, None,
+            i2c_par=0, idx=1
+        ),
+        DeviceType(
+            SensorDeviceClass.HUMIDITY, PERCENTAGE, None, i2c_par=0, idx=2
+        )
+    ]
 }

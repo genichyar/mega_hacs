@@ -169,8 +169,12 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
             c = self.hass.data.get(DOMAIN, {}).get(CONF_CUSTOM, {})
             c = c.get(self._mega_id, {})
             c = c.get(int_ignore(self.port), {})
-            if self.addr is not None and self.index is not None and isinstance(c, dict):
-                idx = self.addr.lower() + f"_a" if self.index == 0 else "_b"
+            if (
+                self.addr is not None and
+                self.index is not None and
+                isinstance(c, dict)
+            ):
+                idx = self.addr.lower() + "_a" if self.index == 0 else "_b"
                 c = c.get(idx, {})
             if self.entity_id is not None:
                 c_entity_id = (
@@ -196,7 +200,8 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
             model = f"{self.mega.model} (port: {self.port_name})"
         return DeviceInfo(
             identifiers={
-                # Serial numbers are unique identifiers within a specific domain
+                # Serial numbers are unique identifiers
+                # within a specific domain
                 (DOMAIN, f"mega_{self._mega_id}_{pt_idx}")
             },
             name=self.name,
@@ -231,15 +236,11 @@ class BaseMegaEntity(CoordinatorEntity, RestoreEntity):
         self._state = await self.async_get_last_state()
 
     async def get_state(self):
-        self.lg.debug(f"state is %s", self.state)
+        self.lg.debug("state is %s", self.state)
         self.async_write_ha_state()
 
 
 class MegaPushEntity(BaseMegaEntity):
-
-    """
-    Updates on messages from mqtt
-    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -251,7 +252,7 @@ class MegaPushEntity(BaseMegaEntity):
         if self.hass is None:
             return
         self.async_write_ha_state()
-        self.lg.debug(f"state after update %s", self.state)
+        self.lg.debug("state after update %s", self.state)
         if not self.entity_id.startswith("binary_sensor"):
             _LOGGER.debug("skip event because not a bnary sens")
             return
@@ -306,10 +307,6 @@ class MegaOutPort(MegaPushEntity):
         self.task: asyncio.Task = None
         self._restore_brightness = None
         self._last_called: float = 0
-
-    # @property
-    # def assumed_state(self) -> bool:
-    #     return True if self.index is not None or self.mega.mqtt is None else False
 
     @property
     def max_dim(self):
@@ -366,14 +363,18 @@ class MegaOutPort(MegaPushEntity):
                 and self.addr is not None
             ):
                 if not isinstance(val, dict):
-                    self.mega.lg.warning(f"{self.entity_id}: {val} is not a dict")
+                    self.mega.lg.warning(
+                        "%s: %s is not a dict", self.entity_id, val
+                    )
                     return
                 _val = val.get(
-                    self.addr, val.get(self.addr.lower(), val.get(self.addr.upper()))
+                    self.addr,
+                    val.get(self.addr.lower(), val.get(self.addr.upper()))
                 )
                 if not isinstance(_val, str):
                     self.mega.lg.warning(
-                        f"{self.entity_id}: can not get {self.addr} from {val}, recieved {_val}"
+                        "%s: can not get %s from %s, recieved %s",
+                        self.entity_id, self.addr, val, _val
                     )
                     return
                 _val = _val.split("/")
@@ -387,10 +388,13 @@ class MegaOutPort(MegaPushEntity):
                     )
                     val = _val[self.index]
                 else:
-                    self.mega.lg.warning(f"{self.entity_id}: {_val} has wrong length")
+                    self.mega.lg.warning(
+                        "%s: %s has wrong length",
+                        self.entity_id, _val
+                    )
                     return
             elif self.index is not None and self.addr is None:
-                self.mega.lg.warning(f"{self.entity_id} does not has addr")
+                self.mega.lg.warning("%s does not has addr", self.entity_id)
                 return
             self.mega.lg.debug("%s.state = %s", self.entity_id, val)
             if not self.invert:
@@ -437,7 +441,10 @@ class MegaOutPort(MegaPushEntity):
     def _set_dim_brightness(self, from_, to_, transition):
         pct = abs(to_ - from_) / self.max_dim
         update_state = transition is not None and transition > 3
-        tm = (self.smooth.total_seconds() * pct) if transition is None else transition
+        tm = (
+            (self.smooth.total_seconds() * pct)
+            if transition is None else transition
+        )
         if self.task is not None:
             self.task.cancel()
         self.task = asyncio.create_task(
@@ -446,7 +453,9 @@ class MegaOutPort(MegaPushEntity):
                 time=tm,
                 can_smooth_hardware=self.can_smooth_hardware,
                 max_values=[self.max_dim],
-                updater=partial(self.update_from_smooth, update_state=update_state),
+                updater=partial(
+                    self.update_from_smooth, update_state=update_state
+                ),
             )
         )
 
@@ -504,7 +513,9 @@ class MegaOutPort(MegaPushEntity):
             )
         elif isinstance(self.port, str) and "e" in self.port:
             if not self.dimmer:
-                self.mega.values[self.port] = "ON" if not self.invert else "OFF"
+                self.mega.values[self.port] = (
+                    "ON" if not self.invert else "OFF"
+                )
             else:
                 self.mega.values[self.port] = cmd
         else:
@@ -564,5 +575,5 @@ def safe_int(v, def_on=1, def_off=0, def_val=None):
 def safe_float(v):
     try:
         return float(v)
-    except:
+    except Exception:
         return None

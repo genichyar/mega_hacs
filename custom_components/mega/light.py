@@ -68,9 +68,12 @@ PLATFORM_SCHEMA = LIGHT_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_platform(
+    hass, config, add_entities, discovery_info=None
+):
     lg.warning(
-        "mega integration does not support yaml for lights, please use UI configuration"
+        "mega integration does not support yaml for lights, "
+        "please use UI configuration"
     )
     return True
 
@@ -116,8 +119,10 @@ async def async_setup_entry(
         ):
             continue
         for data in cfg:
-            hub.lg.debug(f"add light on port %s with data %s", port, data)
-            light = MegaLight(mega=hub, port=port, config_entry=config_entry, **data)
+            hub.lg.debug("add light on port %s with data %s", port, data)
+            light = MegaLight(
+                mega=hub, port=port, config_entry=config_entry, **data
+            )
             if "<" in light.name:
                 continue
             devices.append(light)
@@ -174,7 +179,6 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
 
     @property
     def white_value(self):
-        # if self.supported_features & SUPPORT_WHITE_VALUE:
         return float(self.get_attribute("white_value", 0))
 
     @property
@@ -204,9 +208,13 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
 
     def get_rgbw(self):
         if not self.is_on:
-            return [0 for x in range(len(self.port))] if not self.is_ws else [0] * 3
+            return [
+                0 for x in range(len(self.port))
+            ] if not self.is_ws else [0] * 3
         rgb = colorsys.hsv_to_rgb(
-            self.hs_color[0] / 360, self.hs_color[1] / 100, self.brightness / 255
+            self.hs_color[0] / 360,
+            self.hs_color[1] / 100,
+            self.brightness / 255
         )
         rgb = [x for x in rgb]
         if self.white_value is not None:
@@ -224,7 +232,7 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
         if (time.time() - self._last_called) < 0.1:
             return
         self._last_called = time.time()
-        self.lg.debug(f"turn on %s with kwargs %s", self.entity_id, kwargs)
+        self.lg.debug("turn on %s with kwargs %s", self.entity_id, kwargs)
         if self._restore is not None:
             self._restore.update(kwargs)
             kwargs = self._restore
@@ -259,28 +267,34 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
             if item == "rgb_color":
                 _after = map_reorder_rgb(value, RGB, self._color_order)
         _after = _after or self.get_rgbw()
-        self._rgb_color = map_reorder_rgb(tuple(_after[:3]), self._color_order, RGB)
+        self._rgb_color = map_reorder_rgb(
+            tuple(_after[:3]), self._color_order, RGB
+        )
         if transition is None:
             transition = self.smooth.total_seconds()
             ratio = self.calc_speed_ratio(_before, _after)
             transition = transition * ratio
         self.async_write_ha_state()
         ports = self.port if not self.is_ws else self.port * 3
-        config = [(port, _before[i], _after[i]) for i, port in enumerate(ports)]
+        config = [
+            (port, _before[i], _after[i]) for i, port in enumerate(ports)
+        ]
         try:
             await self.mega.smooth_dim(
                 *config,
                 time=transition,
                 ws=self.is_ws,
                 jitter=50,
-                updater=partial(self._update_from_rgb, update_state=update_state),
+                updater=partial(
+                    self._update_from_rgb, update_state=update_state
+                ),
                 can_smooth_hardware=self.can_smooth_hardware,
                 max_values=self.max_values,
                 chip=self.chip,
             )
         except asyncio.CancelledError:
             return
-        except:
+        except Exception:
             self.lg.exception("while dimming")
 
     async def async_will_remove_from_hass(self) -> None:
@@ -319,9 +333,11 @@ class MegaRGBW(LightEntity, BaseMegaEntity):
 
     async def async_update(self):
         """
-        Эта штука нужна для синхронизации статуса вкл/выкл с реальностью. Если все цвета сброшены в ноль, значит мега
-        рестартнулась и не запомнила настройки, поэтому извещаем HA о выключении
-        Если вручную править цвет на стороне меги, тут изменения отражаться не будут
+        Эта штука нужна для синхронизации статуса вкл/выкл с реальностью.
+        Если все цвета сброшены в ноль, значит мега рестартнулась и
+        не запомнила настройки, поэтому извещаем HA о выключении.
+        Если вручную править цвет на стороне меги,
+        тут изменения отражаться не будут
         :return:
         """
         if not self.enabled:
@@ -521,7 +537,9 @@ class MegaSimpleRGB(LightEntity, BaseMegaEntity):
                 *config,
                 time=transition,
                 jitter=50,
-                updater=partial(self._update_from_rgb, update_state=update_state),
+                updater=partial(
+                    self._update_from_rgb, update_state=update_state
+                ),
                 can_smooth_hardware=self.can_smooth_hardware,
                 max_values=self.max_values
             )

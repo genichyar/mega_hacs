@@ -38,7 +38,10 @@ class MegaView(HomeAssistantView):
             mid: {
                 pt: cfg[mid][pt][CONF_RESPONSE_TEMPLATE]
                 for pt in cfg[mid]
-                if isinstance(pt, int) and CONF_RESPONSE_TEMPLATE in cfg[mid][pt]
+                if (
+                    isinstance(pt, int) and
+                    CONF_RESPONSE_TEMPLATE in cfg[mid][pt]
+                )
             }
             for mid in cfg
             if isinstance(cfg[mid], dict)
@@ -57,9 +60,10 @@ class MegaView(HomeAssistantView):
                     break
             if not auth:
                 msg = (
-                    f"Non-authorised request from {request.remote} to `/mega`. "
-                    f"If you want to accept requests from this host "
-                    f"please add it to allowed hosts in `mega` UI-configuration"
+                    f"Non-authorised request from {request.remote} "
+                    "to `/mega`. "
+                    "If you want to accept requests from this host "
+                    "please add it to allowed hosts in `mega` UI-configuration"
                 )
                 if not self.notified_attempts[request.remote]:
                     await hass.services.async_call(
@@ -80,14 +84,16 @@ class MegaView(HomeAssistantView):
             hub = self.hubs.get(request.query["mdid"])
             if hub is None:
                 _LOGGER.warning(
-                    f'can not find mdid={request.query["mdid"]} in {list(self.hubs)}'
+                    "can not find mdid=%s in %s",
+                    request.query["mdid"], list(self.hubs)
                 )
         if hub is None and request.remote in ["::1", "127.0.0.1"]:
             try:
                 hub = list(self.hubs.values())[0]
             except IndexError:
                 _LOGGER.warning(
-                    f'can not find mdid={request.query["mdid"]} in {list(self.hubs)}'
+                    "can not find mdid=%s in %s",
+                    request.query["mdid"], list(self.hubs)
                 )
                 return Response(status=400)
         elif hub is None:
@@ -97,7 +103,7 @@ class MegaView(HomeAssistantView):
             EVENT_BINARY_SENSOR,
             data,
         )
-        _LOGGER.debug(f"Request: %s from '%s'", data, request.remote)
+        _LOGGER.debug("Request: %s from '%s'", data, request.remote)
         make_ints(data)
         if data.get("st") == "1":
             hass.async_create_task(self.later_restore(hub))
@@ -112,7 +118,9 @@ class MegaView(HomeAssistantView):
         ret = "d" if hub.force_d else ""
         if port is not None:
             if is_ext(data):
-                # ret = ''  # пока ответ всегда пустой, неясно какая будет реакция на непустой ответ
+                # ret = ''
+                # пока ответ всегда пустой, неясно,
+                # какая будет реакция на непустой ответ
                 if port in hub.extenders:
                     pt_orig = port
                 else:
@@ -130,18 +138,23 @@ class MegaView(HomeAssistantView):
                         pt = hub.get_ext_port_id(pt_orig, idx)
                         _data["pt_orig"] = pt_orig
                         _data["value"] = "ON" if v == "1" else "OFF"
+                        # имитация поведения обычного входа,
+                        # чтобы события обрабатывались аналогично
                         _data["m"] = (
                             1 if _data[e] == "0" else 0
-                        )  # имитация поведения обычного входа, чтобы события обрабатывались аналогично
+                        )
                         hub.values[pt] = _data
                         for cb in self.callbacks[hub.id][pt]:
                             cb(_data)
                         act = hub.ext_act.get(pt)
                         hub.lg.debug(
-                            f"act on port {pt}: {act}, all acts are: {hub.ext_act}"
+                            "act on port %s: %s, all acts are: %s",
+                            pt, act, hub.ext_act
                         )
-                        template: Template = self.templates.get(hub.id, {}).get(
-                            port, hub.def_response
+                        template: Template = (
+                            self.templates.get(hub.id, {}).get(
+                                port, hub.def_response
+                            )
                         )
                         if template is not None:
                             template.hass = hass
@@ -164,7 +177,9 @@ class MegaView(HomeAssistantView):
             if hub.update_all and update_all:
                 asyncio.create_task(self.later_update(hub))
         _LOGGER.debug("response %s", ret)
-        Response(body="" if hub.fake_response else ret, content_type="text/plain")
+        Response(
+            body="" if hub.fake_response else ret, content_type="text/plain"
+        )
 
         if (
             hub.fake_response
@@ -182,7 +197,8 @@ class MegaView(HomeAssistantView):
 
     async def later_restore(self, hub):
         """
-        Восстановление всех выходов с небольшой задержкой. Задержка нужна чтобы ответ прошел успешно
+        Восстановление всех выходов с небольшой задержкой.
+        Задержка нужна, чтобы ответ прошел успешно
 
         :param hub:
         :return:

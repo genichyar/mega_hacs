@@ -53,7 +53,9 @@ PATTERNS = {
 }
 
 UNITS = {TEMP: "°C", HUM: "%"}
-CLASSES = {TEMP: SensorDeviceClass.TEMPERATURE, HUM: SensorDeviceClass.HUMIDITY}
+CLASSES = {
+    TEMP: SensorDeviceClass.TEMPERATURE, HUM: SensorDeviceClass.HUMIDITY
+}
 # Validation of the user's configuration
 _ITEM = {
     vol.Required(CONF_PORT): int,
@@ -71,9 +73,12 @@ PLATFORM_SCHEMA = SENSOR_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_platform(
+    hass, config, add_entities, discovery_info=None
+):
     lg.warning(
-        "mega integration does not support yaml for sensors, please use UI configuration"
+        "mega integration does not support yaml for sensors, "
+        "please use UI configuration"
     )
     return True
 
@@ -110,7 +115,7 @@ async def async_setup_entry(
                 continue
             for data in cfg:
                 hub.lg.debug(
-                    f"add sensor on port %s with data %s, constructor: %s",
+                    "add sensor on port %s with data %s, constructor: %s",
                     port,
                     data,
                     _constructors[tp],
@@ -144,8 +149,10 @@ class FilterBadValues(MegaPushEntity, SensorEntity):
                 or (
                     self._prev_value is not None
                     and self.filter_scale is not None
+                    # при переходе через 0 каждое небольшое изменение
+                    # будет иметь слишком большой эффект
                     and abs(value)
-                    > 2  # при переходе через 0 каждое небольшое изменение будет иметь слишком большой эффект
+                    > 2
                     and (
                         abs((value - self._prev_value) / self._prev_value)
                         > self.filter_scale
@@ -158,8 +165,8 @@ class FilterBadValues(MegaPushEntity, SensorEntity):
                     value = None
             self._prev_value = value
             return value
-        except Exception as exc:
-            lg.exception(f"while parsing value")
+        except Exception:
+            lg.exception("while parsing value")
             return None
 
     @property
@@ -239,8 +246,10 @@ class MegaI2C(FilterBadValues):
             if self.customize.get(CONF_HEX_TO_FLOAT):
                 try:
                     ret = struct.unpack("!f", bytes.fromhex(ret))[0]
-                except:
-                    self.lg.warning(f"could not convert {ret} form hex to float")
+                except Exception:
+                    self.lg.warning(
+                        "could not convert %s form hex to float", ret
+                    )
             tmpl: Template = self.customize.get(
                 CONF_CONV_TEMPLATE, self.customize.get(CONF_VALUE_TEMPLATE)
             )
@@ -249,7 +258,7 @@ class MegaI2C(FilterBadValues):
                 if tmpl is not None and self.hass is not None:
                     tmpl.hass = self.hass
                     ret = tmpl.async_render({"value": ret})
-            except:
+            except Exception:
                 ret = ret
             ret = self.filter_value(ret)
             if ret is not None:
@@ -265,13 +274,15 @@ class MegaI2C(FilterBadValues):
 
 class Mega1WSensor(FilterBadValues):
     def __init__(
-        self, unit_of_measurement=None, device_class=None, key=None, *args, **kwargs
+        self, unit_of_measurement=None, device_class=None, key=None,
+        *args, **kwargs
     ):
         """
         1-wire sensor entity
 
         :param key: key to get value from mega's json
-        :param patt: pattern to extract value, must have at least one group that will contain parsed value
+        :param patt: pattern to extract value, must have at least one group
+                     that will contain parsed value
         """
         super().__init__(*args, **kwargs)
         self.key = key
@@ -325,8 +336,10 @@ class Mega1WSensor(FilterBadValues):
                         ret = ret.get("value", {})
                         if isinstance(ret, dict):
                             ret = ret.get(self.key)
-                except:
-                    self.lg.error(self.mega.values.get(self.port, {}).get("value", {}))
+                except Exception:
+                    self.lg.error(
+                        self.mega.values.get(self.port, {}).get("value", {})
+                    )
                     return
             else:
                 ret = self.mega.values.get(self.port, {}).get("value")
@@ -336,19 +349,27 @@ class Mega1WSensor(FilterBadValues):
                 and self.prev_value is not None
             ):
                 ret = self.prev_value
-            elif ret is None and self.fill_na == "fill_na" and self._state is not None:
+            elif (
+                ret is None and
+                self.fill_na == "fill_na" and
+                self._state is not None
+            ):
                 ret = self._state.state
             try:
                 ret = float(ret)
                 ret = str(ret)
-            except:
-                self.lg.debug(f'could not convert to float "{ret}"')
+            except Exception:
+                self.lg.debug(
+                    "could not convert to float '%s'", ret
+                )
                 ret = self.prev_value
             if self.customize.get(CONF_HEX_TO_FLOAT):
                 try:
                     ret = struct.unpack("!f", bytes.fromhex(ret))[0]
-                except:
-                    self.lg.warning(f"could not convert {ret} form hex to float")
+                except Exception:
+                    self.lg.warning(
+                        "could not convert %s form hex to float", ret
+                    )
             tmpl: Template = self.customize.get(
                 CONF_CONV_TEMPLATE, self.customize.get(CONF_VALUE_TEMPLATE)
             )
@@ -357,7 +378,7 @@ class Mega1WSensor(FilterBadValues):
                 if tmpl is not None and self.hass is not None:
                     tmpl.hass = self.hass
                     ret = tmpl.async_render({"value": ret})
-            except:
+            except Exception:
                 pass
             ret = self.filter_value(ret)
             self.prev_value = ret
@@ -374,7 +395,7 @@ class Mega1WSensor(FilterBadValues):
         if isinstance(c, dict):
             try:
                 c = c.get(self.key)
-            except:
+            except Exception:
                 pass
         return c or n
 

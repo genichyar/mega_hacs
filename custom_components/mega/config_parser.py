@@ -59,4 +59,3 @@ MCP230_OUT = Config(ety="1")
 MCP230_IN = Config(ety="0")
 PCA9685 = Config(pty="4", m="1", gr="3", d="21")
 OWIRE_BUS = Config(pty="3", d="5")
-

@@ -28,7 +28,8 @@ def int_ignore(x):
 
 class PriorityLock(asyncio.Lock):
     """
-    You can acquire lock with some kind of priority in mind, so that locks with higher priority will be released first.
+    You can acquire lock with some kind of priority in mind,
+    so that locks with higher priority will be released first.
     priority can be set with lck.acquire(1)
     or by using context manager:
     >>> lck = PriorityLock()
@@ -57,11 +58,15 @@ class PriorityLock(asyncio.Lock):
     async def acquire(self, priority=0) -> bool:
         """Acquire a lock.
 
-                This method blocks until the lock is unlocked, then sets it to
-                locked and returns True.
-                """
-        if (not self._locked and (self._waiters is None or
-                                  all(w.cancelled() for _, _, w in self._waiters))):
+        This method blocks until the lock is unlocked, then sets it to
+        locked and returns True.
+        """
+        if (
+            not self._locked and (
+                self._waiters is None or
+                all(w.cancelled() for _, _, w in self._waiters)
+            )
+        ):
             self._locked = True
             return True
 

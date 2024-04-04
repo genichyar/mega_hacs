@@ -39,12 +39,19 @@ PLATFORM_SCHEMA = LIGHT_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, add_entities, discovery_info=None):
-    lg.warning('mega integration does not support yaml for switches, please use UI configuration')
+async def async_setup_platform(
+    hass, config, add_entities, discovery_info=None
+):
+    lg.warning(
+        "mega integration does not support yaml for switches, "
+        "please use UI configuration"
+    )
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices):
+async def async_setup_entry(
+        hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
+):
     mid = config_entry.data[CONF_ID]
     hub: 'h.MegaD' = hass.data['mega'][mid]
     devices = []
@@ -56,8 +63,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
         if c.get(CONF_SKIP, False) or c.get(CONF_DOMAIN, 'light') != 'switch':
             continue
         for data in cfg:
-            hub.lg.debug(f'add switch on port %s with data %s', port, data)
-            light = MegaSwitch(mega=hub, port=port, config_entry=config_entry, **data)
+            hub.lg.debug('add switch on port %s with data %s', port, data)
+            light = MegaSwitch(
+                mega=hub, port=port, config_entry=config_entry, **data
+            )
             if '<' in light.name:
                 continue
             devices.append(light)
