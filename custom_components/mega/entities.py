@@ -11,6 +11,7 @@ from homeassistant.core import State
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util.color import value_to_brightness, brightness_to_value
 from . import hub as h
 from .const import (
     DOMAIN,
@@ -313,55 +314,36 @@ class MegaOutPort(MegaPushEntity):
 
     @property
     def max_dim(self):
-        if self.dimmer_scale == 1:
-            return 255
-        elif self.dimmer_scale == 16:
-            return 4095
-        else:
-            return 255
+        max_dim = 255
+        if self.dimmer_scale == 16:
+            max_dim = 4095
+        return max_dim
 
     @property
     def range(self) -> typing.List[int]:
-        return self.customize.get(CONF_RANGE, [0, 255])
+        return self.customize.get(CONF_RANGE, [1, self.max_dim])
 
     @property
     def invert(self):
         return self.customize.get(CONF_INVERT, False)
 
     @property
+    def device_value(self):
+        val = self.mega.values.get(self.port, {})
+        if val is None or isinstance(val, dict) and len(val) == 0:
+            return
+        if not self.is_extender:
+            val = val.get("value")
+        return safe_int(val, def_on=self.max_dim, def_off=0)
+
+    @property
     def brightness(self):
-        ret = None
         if not self.dimmer:
             return
-        val = self.mega.values.get(self.port, {})
-        if isinstance(val, dict) and len(val) == 0 and self._state is not None:
-            ret = safe_int(
-                self._state.attributes.get("brightness"),
-                def_on=self.max_dim,
-                def_off=0,
-                def_val=0,
-            )
-            ret = self._calc_brightness(ret)
-        elif isinstance(self.port, str) and "e" in self.port:
-            if isinstance(val, str):
-                val = safe_int(val, def_on=self.max_dim, def_off=0, def_val=0)
-            else:
-                val = 0
-            if val == 0:
-                ret = self._brightness
-            elif isinstance(val, (int, float)):
-                ret = int(val / self.dimmer_scale)
-        elif val is not None:
-            val = val.get("value")
-            if val is None:
-                return
-            try:
-                val = int(val)
-                ret = val
-            except Exception:
-                pass
-        ret = self._cal_reverse_brightness(ret)
-        return ret
+        val = self.device_value
+        if val is None or val == 0:
+            return self._brightness
+        return value_to_brightness(self.range, val)
 
     @property
     def is_on(self) -> bool:
@@ -454,7 +436,7 @@ class MegaOutPort(MegaPushEntity):
             self.async_write_ha_state()
 
     def _set_dim_brightness(self, from_, to_, transition):
-        pct = abs(to_ - from_) / (255 if self.dimmer_scale == 1 else 4095)
+        pct = abs(to_ - from_) / self.max_dim
         update_state = transition is not None and transition > 3
         tm = (self.smooth.total_seconds() * pct) if transition is None else transition
         if self.task is not None:
@@ -464,32 +446,10 @@ class MegaOutPort(MegaPushEntity):
                 (self.cmd_port, from_, to_),
                 time=tm,
                 can_smooth_hardware=self.can_smooth_hardware,
-                max_values=[255 if self.dimmer_scale == 1 else 4095],
+                max_values=[self.max_dim],
                 updater=partial(self.update_from_smooth, update_state=update_state),
             )
         )
-
-    def _calc_brightness(self, brightness):
-        if brightness is None:
-            brightness = 0
-        pct = brightness / 255
-        pct = max((0, pct))
-        pct = min((pct, 1))
-        l, h = self.range
-        d = h - l
-        brightness = round(pct * d + l)
-        return brightness
-
-    def _cal_reverse_brightness(self, brightness):
-        if brightness is None:
-            brightness = 0
-        l, h = self.range
-        d = h - l
-        pct = (brightness - l) / d
-        pct = max((0, pct))
-        pct = min((pct, 1))
-        brightness = round(pct * 255)
-        return brightness
 
     async def async_turn_on(self, brightness=None, transition=None, **kwargs):
         if (time.time() - self._last_called) < 0.1:
@@ -500,24 +460,36 @@ class MegaOutPort(MegaPushEntity):
         if not self.is_on and (brightness is None or brightness == 0):
             brightness = self._restore_brightness
         brightness = brightness or self.brightness or 255
-        brightness = self._calc_brightness(brightness)
-        _prev = safe_int(self.brightness) or 0
         self._brightness = brightness
+        dev_brightness = brightness_to_value(self.range, brightness)
+        if self.smooth_dim or transition:
+            prev_dev_brightness = self.device_value or 0
+        else:
+            prev_dev_brightness = 0
         if hasattr(self, "dimmer") and self.dimmer and brightness == 0:
-            cmd = self.max_dim
+            cmd = self.range[1]
         elif hasattr(self, "dimmer") and self.dimmer:
-            cmd = min((brightness * self.dimmer_scale, self.max_dim))
+            cmd = dev_brightness
             if self.smooth_dim or transition:
-                self._set_dim_brightness(from_=_prev, to_=cmd, transition=transition)
+                self._set_dim_brightness(
+                    from_=prev_dev_brightness, to_=dev_brightness,
+                    transition=transition
+                )
         else:
             cmd = 1 if not self.invert else 0
+
         if transition is None:
             _cmd = {"cmd": f"{self.cmd_port}:{cmd}"}
         else:
+            cnt = round(
+                transition / abs(
+                    dev_brightness - prev_dev_brightness
+                ) * self.max_dim
+            )
             _cmd = {
                 "pt": f"{self.cmd_port}",
                 "pwm": cmd,
-                "cnt": round(transition / (abs(_prev - brightness) / 255)),
+                "cnt": cnt
             }
         if self.addr:
             _cmd["addr"] = self.addr
@@ -544,21 +516,19 @@ class MegaOutPort(MegaPushEntity):
         if (time.time() - self._last_called) < 0.1:
             return
         self._last_called = time.time()
-        self._restore_brightness = self._cal_reverse_brightness(
-            safe_int(self._brightness)
-        )
+        self._restore_brightness = self._brightness
         if not self.dimmer:
             transition = None
         cmd = "0" if not self.invert else "1"
         _cmd = {"cmd": f"{self.cmd_port}:{cmd}"}
-        _prev = safe_int(self.brightness) or 0
         if self.addr:
             _cmd["addr"] = self.addr
         if not (self.smooth_dim or transition):
             await self.mega.request(**_cmd, priority=-1)
         else:
+            prev_dev_brightness = self.device_value or 0
             self._set_dim_brightness(
-                from_=_prev,
+                from_=prev_dev_brightness,
                 to_=0,
                 transition=transition,
             )
