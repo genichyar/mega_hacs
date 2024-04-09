@@ -247,7 +247,7 @@ class MegaPushEntity(BaseMegaEntity):
         self.async_write_ha_state()
         self.lg.debug("state after update %s", self.state)
         if not self.entity_id.startswith("binary_sensor"):
-            _LOGGER.debug("skip event because not a bnary sens")
+            self.lg.debug("skip event because not a binary sens")
             return
         ll: bool = self.mega.last_long.get(self.port, False)
         if safe_int(value.get("click", 0)) == 1:
