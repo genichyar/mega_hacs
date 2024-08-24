@@ -254,10 +254,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     _hubs[entry.entry_id] = hub
     _subs[entry.entry_id] = entry.add_update_listener(updater)
     await hub.start()
-    for platform in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, platform)
-        )
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await hub.updater.async_refresh()
     return True
 
@@ -286,8 +283,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     _hubs.pop(id, None)
     hass.data[DOMAIN].pop(id, None)
     hass.data[DOMAIN][CONF_ALL].pop(id, None)
-    for platform in PLATFORMS:
-        await hass.config_entries.async_forward_entry_unload(entry, platform)
+    await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     task: asyncio.Task = _POLL_TASKS.pop(id, None)
     if task is not None:
         task.cancel()
