@@ -16,6 +16,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.service import bind_hass
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.config_entries import ConfigEntry
 from .const import (
     DOMAIN,
@@ -256,6 +257,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     await hub.start()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await hub.updater.async_refresh()
+
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, hub.id)},
+        name=f"MegaD Hub ({hub.id})",
+        manufacturer="ab-log.ru",
+        model=hub.model,
+        sw_version=hub.fw
+    )
     return True
 
 
